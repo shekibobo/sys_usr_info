@@ -57,7 +57,7 @@ int main()
   stat(me.pw_dir, &sb);
   process_permissions(sb, permissions); // set permissions string
 
-  host = gethostname(host, 1024);
+  gethostname(host, 1024);
   uname(&system);
 
   days = 0;
