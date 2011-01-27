@@ -46,6 +46,7 @@
 void process_permissions(struct stat, char*);
 char getlastchar(char*);
 void printMatchingUsers(char);
+void age(struct tm*, int*, int*, int*);
 
 int main()
 {
@@ -57,25 +58,25 @@ int main()
   struct utsname system;  // to hold the system info struct
 
   struct tm birthdate;
-    birthdate.tm_year = 1962;
-    birthdate.tm_mon = 9;
-    birthdate.tm_mday = 1;
-
-
-  int days, months, years;
+    birthdate.tm_year = 1962 - 1900;  //offset
+    birthdate.tm_mon = 9 - 1;         //offset
+    birthdate.tm_mday = 1;            //actual day
+  int years, months, days;            // for age
+  years = months = days = 0;
 
   me = *getpwnam(getenv("USER"));       // get the pw entry for this user
   stat(me.pw_dir, &sb);                 // get the permission bits for this user
   process_permissions(sb, permissions); // set permissions string
   gr = *getgrgid(me.pw_gid); // get the group name struct
 
+  age(&birthdate,&years, &months, &days);
+
   gethostname(host, 1024);    // get the name of this computer
   uname(&system);             // get OS information
 
-  days = 0;
-  months = 0;
-  years = 0;
-
+  /**
+   *       PRINT OUTPUT TO SCREEN
+   */
   printf ("\nAbout me\n");
   printf ("========\n");
   printf ("Unix User\t\t: %s (%d)\n", me.pw_name, (int) me.pw_uid);
@@ -100,9 +101,18 @@ int main()
           system.sysname, system.release, system.machine);
   printf ("\n");
 
+  /**
+   *             END OUTPUT
+   */
+
   return 0;
 }
 
+/**
+ * This method will take an argument of type struct stat and a string.
+ * It pulls the permissions mode bit from the stat struct and puts the
+ * ascii drwxrwxrwx interpretation into the passed string pointer.
+ */
 void process_permissions(struct stat sb, char *p)
 {
   unsigned long fp = sb.st_mode;
@@ -120,17 +130,31 @@ void process_permissions(struct stat sb, char *p)
   p[10] = '\0';
 }
 
+/**
+ * This method will return the last character in the string passed to it.
+ */
 char getlastchar(char* str)
 {
   // return the last character in a string
   return (str[strlen(str)-1]);
 }
 
+/**
+ * This method runs through each user entry of the passwd file and prints the
+ * username from each entry where the username's last character is the same as
+ * the character passed into the function.
+ *
+ * Note: getpwent() aparrently has a massive memory leak when used on the
+ * EOS and Arch machines.  If you comment out the section noted in the code,
+ * it will compile with warnings of unused variables, but will also not
+ * run with any memory leak warnings with valgrind.
+ */
 void printMatchingUsers(char lastchar)
 {
   struct passwd* entry;
   char* name;
   printf("\t");
+  /* -------------comment out from here--------------------*/
   setpwent(); // start at the beginning
 
   // step through each entry
@@ -143,5 +167,31 @@ void printMatchingUsers(char lastchar)
     }
   }
   endpwent(); // close the stream
+  /* --------------to here with valgrind on eos/arch -------*/
   printf("\n");
+}
+
+
+/**
+ * Takes a broken-time structure with the tm_year, tm_mon, and tm_mday set,
+ * and gives a rough estimate (within a day or two) of your exact age, putting
+ * the years, months, and days of the user's age into the y, m, d pointers
+ * passed as arguments.
+ *
+ * This assumes the current month always has 30 days.
+ */
+void age(struct tm* dob, int* y, int* m, int* d)
+{
+  int sy = dob->tm_year;
+  int sm = dob->tm_mon;
+  int sd = dob->tm_mday;
+
+  time_t t = time(NULL);
+  struct tm now = *localtime(&t);
+
+  // pull the age apart by year, month, day, set the difference
+  if (now.tm_mon < sm) *y = now.tm_year - (now.tm_mday < sd ? sy : sy + 1);
+  else *y = now.tm_year - sy;
+  *m = now.tm_mon < sm ? now.tm_mon + 12 - sm : now.tm_mon - sm;
+  *d = now.tm_mday < sd ? now.tm_mday + 30 - sd : now.tm_mday - sd;
 }
