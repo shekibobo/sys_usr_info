@@ -45,7 +45,7 @@
 
 void process_permissions(struct stat, char *);
 char getlastchar(char *);
-void printMatchingUsers(char);
+void printMatchingUsers(char, int);
 void age(struct tm *, int *, int *, int *, char *);
 
 int main()
@@ -93,7 +93,7 @@ int main()
 
     printf("Other userids that end with '%c':\n", getlastchar(me.pw_name));
 
-    printMatchingUsers(getlastchar(me.pw_name));
+    printMatchingUsers(getlastchar(me.pw_name), 5);
 
     printf("\nAbout my machine\n");
     printf("==================\n");
@@ -143,28 +143,34 @@ char getlastchar(char *str)
 /**
  * This method runs through each user entry of the passwd file and prints the
  * username from each entry where the username's last character is the same as
- * the character passed into the function.
+ * the character passed into the function. A limit must also be passed. If the
+ * limit is set to 0, then it will print all matching usernames.
  *
  * Note: getpwent() aparrently has a massive memory leak when used on the
  * EOS and Arch machines.  If you comment out the section noted in the code,
  * it will compile with warnings of unused variables, but will also not
  * run with any memory leak warnings with valgrind.
  */
-void printMatchingUsers(char lastchar)
+void printMatchingUsers(char lastchar, int limit)
 {
-    struct passwd *entry;
-    char *name;
+    struct passwd *entry;       //passwd struct
+    char *name;                 //user name
+    int i;                      //counter
+    i = (limit > 0 ? 0 : -1);
+
     printf("\t");
     /* -------------comment out from here-------------------- */
     setpwent();                 // start at the beginning
 
     // step through each entry
-    for (entry = getpwent(); entry != NULL; entry = getpwent()) {
+    while (((entry = getpwent()) != NULL) && (i < limit)) {
+
         name = entry->pw_name;
 
         // print it if last letter matches user lastchar
         if (lastchar == getlastchar(name)) {
             printf("%s ", name);
+            limit > 0 ? i++ : i--;
         }
     }
     endpwent();                 // close the stream
