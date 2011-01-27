@@ -33,79 +33,80 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <sys/utsname.h> // uname();
+#include <sys/utsname.h>        // uname();
 
-#include <sys/types.h> // for stat();
+#include <sys/types.h>          // for stat();
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <pwd.h> // for password file stuff
-#include <grp.h> // for groups
-#include <time.h> // for time
+#include <pwd.h>                // for password file stuff
+#include <grp.h>                // for groups
+#include <time.h>               // for time
 
-void process_permissions(struct stat, char*);
-char getlastchar(char*);
+void process_permissions(struct stat, char *);
+char getlastchar(char *);
 void printMatchingUsers(char);
-void age(struct tm*, int*, int*, int*);
+void age(struct tm *, int *, int *, int *, char *);
 
 int main()
 {
-  struct passwd me;       // user info
-  struct group gr;    // user group name
-  struct stat sb;         // permission bits (unsigned long)
-  char permissions[11];   // "drwxrwxrwx\0"
-  char host[1024];        // dns of the host for this computer
-  struct utsname system;  // to hold the system info struct
+    struct passwd me;           // user info
+    struct group gr;            // user group name
+    struct stat sb;             // permission bits (unsigned long)
+    char permissions[11];       // "drwxrwxrwx\0"
+    char host[1024];            // dns of the host for this computer
+    struct utsname system;      // to hold the system info struct
 
-  struct tm birthdate;
-    birthdate.tm_year = 1962 - 1900;  //offset
-    birthdate.tm_mon = 9 - 1;         //offset
-    birthdate.tm_mday = 1;            //actual day
-  int years, months, days;            // for age
-  years = months = days = 0;
+    struct tm birthdate;
+    birthdate.tm_year = 1962 - 1900;    //offset
+    birthdate.tm_mon = 9 - 1;   //offset
+    birthdate.tm_mday = 1;      //actual day
+    int years, months, days;    // for age
+    years = months = days = 0;
+    char now_f[256];
 
-  me = *getpwnam(getenv("USER"));       // get the pw entry for this user
-  stat(me.pw_dir, &sb);                 // get the permission bits for this user
-  process_permissions(sb, permissions); // set permissions string
-  gr = *getgrgid(me.pw_gid); // get the group name struct
+    me = *getpwnam(getenv("USER"));     // get the pw entry for this user
+    stat(me.pw_dir, &sb);       // get the permission bits for this user
+    process_permissions(sb, permissions);       // set permissions string
+    gr = *getgrgid(me.pw_gid);  // get the group name struct
 
-  age(&birthdate,&years, &months, &days);
+    age(&birthdate, &years, &months, &days, now_f);
 
-  gethostname(host, 1024);    // get the name of this computer
-  uname(&system);             // get OS information
+    gethostname(host, 1024);    // get the name of this computer
+    uname(&system);             // get OS information
 
   /**
    *       PRINT OUTPUT TO SCREEN
    */
-  printf ("\nAbout me\n");
-  printf ("========\n");
-  printf ("Unix User\t\t: %s (%d)\n", me.pw_name, (int) me.pw_uid);
-  printf ("Name\t\t\t: %s\n", me.pw_gecos);
-  printf ("Unix Group\t\t: %s (%d)\n", gr.gr_name, gr.gr_gid);
-  printf ("Unix Home\t\t: %s\n", me.pw_dir);
-  printf ("Home Permission\t\t: %s (%lo)\n",
-          permissions, (unsigned long) sb.st_mode);
-  printf ("Login Shell\t\t: %s\n", me.pw_shell);
+    printf("\nAbout me\n");
+    printf("========\n");
+    printf("Unix User\t\t: %s (%d)\n", me.pw_name, (int) me.pw_uid);
+    printf("Name\t\t\t: %s\n", me.pw_gecos);
+    printf("Unix Group\t\t: %s (%d)\n", gr.gr_name, gr.gr_gid);
+    printf("Unix Home\t\t: %s\n", me.pw_dir);
+    printf("Home Permission\t\t: %s (%lo)\n",
+           permissions, (unsigned long) sb.st_mode);
+    printf("Login Shell\t\t: %s\n", me.pw_shell);
 
-  printf ("On 2011-Jan-16, I am %d years %d months and %d days old.\n",
-          years, months, days);
+    printf("On %s, I am %d years %d months and %d days old.\n",
+           now_f, years, months, days);
 
-  printf ("Other userids that end with '%c':\n", getlastchar(me.pw_name));
+    printf("Other userids that end with '%c':\n", getlastchar(me.pw_name));
 
-  printMatchingUsers(getlastchar(me.pw_name));
+    printMatchingUsers(getlastchar(me.pw_name));
 
-  printf ("\nAbout my machine\n");
-  printf ("==================\n");
-  printf ("Host\t: %s\n", host);
-  printf ("System\t: %s %s.%s\n",
-          system.sysname, system.release, system.machine);
-  printf ("\n");
+    printf("\nAbout my machine\n");
+    printf("==================\n");
+    printf("Host\t: %s\n", host);
+    printf("System\t: %s %s.%s\n",
+           system.sysname, system.release, system.machine);
+    printf("\n");
 
   /**
    *             END OUTPUT
    */
 
-  return 0;
+    return 0;
 }
 
 /**
@@ -115,28 +116,28 @@ int main()
  */
 void process_permissions(struct stat sb, char *p)
 {
-  unsigned long fp = sb.st_mode;
+    unsigned long fp = sb.st_mode;
 
-  p[0] = (S_ISDIR(fp)) ? 'd' : '-';
-  p[1] = (fp & S_IRUSR) ? 'r' : '-';
-  p[2] = (fp & S_IWUSR) ? 'w' : '-';
-  p[3] = (fp & S_IXUSR) ? 'x' : '-';
-  p[4] = (fp & S_IRGRP) ? 'r' : '-';
-  p[5] = (fp & S_IWGRP) ? 'w' : '-';
-  p[6] = (fp & S_IXGRP) ? 'x' : '-';
-  p[7] = (fp & S_IROTH) ? 'r' : '-';
-  p[8] = (fp & S_IWOTH) ? 'w' : '-';
-  p[9] = (fp & S_IXOTH) ? 'x' : '-';
-  p[10] = '\0';
+    p[0] = (S_ISDIR(fp)) ? 'd' : '-';
+    p[1] = (fp & S_IRUSR) ? 'r' : '-';
+    p[2] = (fp & S_IWUSR) ? 'w' : '-';
+    p[3] = (fp & S_IXUSR) ? 'x' : '-';
+    p[4] = (fp & S_IRGRP) ? 'r' : '-';
+    p[5] = (fp & S_IWGRP) ? 'w' : '-';
+    p[6] = (fp & S_IXGRP) ? 'x' : '-';
+    p[7] = (fp & S_IROTH) ? 'r' : '-';
+    p[8] = (fp & S_IWOTH) ? 'w' : '-';
+    p[9] = (fp & S_IXOTH) ? 'x' : '-';
+    p[10] = '\0';
 }
 
 /**
  * This method will return the last character in the string passed to it.
  */
-char getlastchar(char* str)
+char getlastchar(char *str)
 {
-  // return the last character in a string
-  return (str[strlen(str)-1]);
+    // return the last character in a string
+    return (str[strlen(str) - 1]);
 }
 
 /**
@@ -151,24 +152,24 @@ char getlastchar(char* str)
  */
 void printMatchingUsers(char lastchar)
 {
-  struct passwd* entry;
-  char* name;
-  printf("\t");
-  /* -------------comment out from here--------------------*/
-  setpwent(); // start at the beginning
+    struct passwd *entry;
+    char *name;
+    printf("\t");
+    /* -------------comment out from here-------------------- */
+    setpwent();                 // start at the beginning
 
-  // step through each entry
-  for (entry = getpwent(); entry != NULL; entry = getpwent()) {
-    name = entry->pw_name;
+    // step through each entry
+    for (entry = getpwent(); entry != NULL; entry = getpwent()) {
+        name = entry->pw_name;
 
-    // print it if last letter matches user lastchar
-    if (lastchar == getlastchar(name)) {
-      printf("%s ", name);
+        // print it if last letter matches user lastchar
+        if (lastchar == getlastchar(name)) {
+            printf("%s ", name);
+        }
     }
-  }
-  endpwent(); // close the stream
-  /* --------------to here with valgrind on eos/arch -------*/
-  printf("\n");
+    endpwent();                 // close the stream
+    /* --------------to here with valgrind on eos/arch ------- */
+    printf("\n");
 }
 
 
@@ -176,22 +177,28 @@ void printMatchingUsers(char lastchar)
  * Takes a broken-time structure with the tm_year, tm_mon, and tm_mday set,
  * and gives a rough estimate (within a day or two) of your exact age, putting
  * the years, months, and days of the user's age into the y, m, d pointers
- * passed as arguments.
+ * passed as arguments.Furhermore, it puts the current date into a readable
+ * format in the buffer now_f.
  *
  * This assumes the current month always has 30 days.
  */
-void age(struct tm* dob, int* y, int* m, int* d)
+void age(struct tm *dob, int *y, int *m, int *d, char *now_f)
 {
-  int sy = dob->tm_year;
-  int sm = dob->tm_mon;
-  int sd = dob->tm_mday;
+    int sy = dob->tm_year;
+    int sm = dob->tm_mon;
+    int sd = dob->tm_mday;
 
-  time_t t = time(NULL);
-  struct tm now = *localtime(&t);
+    time_t t = time(NULL);
+    struct tm now = *localtime(&t);
 
-  // pull the age apart by year, month, day, set the difference
-  if (now.tm_mon < sm) *y = now.tm_year - (now.tm_mday < sd ? sy : sy + 1);
-  else *y = now.tm_year - sy;
-  *m = now.tm_mon < sm ? now.tm_mon + 12 - sm : now.tm_mon - sm;
-  *d = now.tm_mday < sd ? now.tm_mday + 30 - sd : now.tm_mday - sd;
+    // pull the age apart by year, month, day, set the difference
+    if (now.tm_mon < sm)
+        *y = now.tm_year - (now.tm_mday < sd ? sy : sy + 1);
+    else
+        *y = now.tm_year - sy;
+    *m = now.tm_mon < sm ? now.tm_mon + 12 - sm : now.tm_mon - sm;
+    *d = now.tm_mday < sd ? now.tm_mday + 30 - sd : now.tm_mday - sd;
+
+    // output as 2011-Jan-26
+    strftime(now_f, 256, "%Y-%b-%d", &now);
 }
